@@ -22,11 +22,10 @@ class ProjectAgent:
         # mon action = un entier entre 0 et 3. C'est l'indice de l'action dans l'ensemble d'actions : 
         # [[0.0, 0.0], [0.0, 0.3], [0.7, 0.0], [0.7, 0.3]]
         
-        probas=self.poids@np.array(observation)
-        probas=np.exp(probas)
-        probas/=np.sum(probas)
-        return np.random.choice([0, 1, 2, 3], p=probas)
-
+        probas = self.poids @ np.array(observation)
+        probas -= np.max(probas)  # Subtract max value to prevent overflow
+        probas = np.exp(probas)
+        probas /= np.sum(probas)
     def save(self, path):
         pass
 
@@ -47,11 +46,6 @@ if __name__=='__main__':
         print('current score : ', sc)
         return sc
 
-    
-    
-
-    
-
     agent = ProjectAgent()
     agent.load()
     
@@ -69,63 +63,69 @@ if __name__=='__main__':
         for i in range(len(env_begin)): 
             poids[:, i] = (1/6)/env_begin[i]
         
-        result = minimize(evaluate_weights, poids.flatten(), method='L-BFGS-B')
-        poids_optimal = result.x.reshape((4,6))
-        agent.update_poids(poids_optimal)
-        # save poids_optimal
-        # agent.save('poids_optimal.npy')
-        np.savetxt('./poids_opti.txt', poids_optimal, delimiter=",")
+        # result = minimize(evaluate_weights, poids.flatten(), method='L-BFGS-B')
+        # poids_optimal = result.x.reshape((4,6))
+        # agent.update_poids(poids_optimal)
+        # # save poids_optimal
+        # # agent.save('poids_optimal.npy')
+        # np.savetxt('./poids_opti.txt', poids_optimal, delimiter=",")
         
     
-        score_agent = evaluate_HIV(agent=agent, nb_episode=1) # sur un patient, 7.5 secondes 
+        # score_agent = evaluate_HIV(agent=agent, nb_episode=1) # sur un patient, 7.5 secondes 
 
 
-        print(score_agent)
-        
-    # update=0.2
-    # scores=[]
-    # agent=ProjectAgent()
-    # agent.update_poids(poids) 
-    # current_score=evaluate_HIV(agent=agent, nb_episode=1)
-    # scores.append(current_score)
-    # for i in range(10): 
-    #     update=update/2
-    #     for j in range(len(poids)): 
-    #         for k in range(len(poids[j])):
-    #             print(i, j, k )
+        # print(score_agent)
+            
+        update=0.2
+        scores=[]
+        agent=ProjectAgent()
+        agent.update_poids(poids) 
+        current_score=evaluate_HIV(agent=agent, nb_episode=1)
+        with open('scores.txt', 'w') as f : 
+            f.write(str(current_score)+'\n')
+        scores.append(current_score)
+        for i in range(10): 
+            update=update/2
+            for j in range(len(poids)): 
+                for k in range(len(poids[j])):
+                    print(i, j, k )
 
-    #             smaller = np.copy(poids)
-    #             smaller[j, k] *= (1-update)
-    #             agent.update_poids(smaller)
-    #             small_score=evaluate_HIV(agent=agent, nb_episode=1)
+                    smaller = np.copy(poids)
+                    smaller[j, k] *= (1-update)
+                    agent.update_poids(smaller)
+                    small_score=evaluate_HIV(agent=agent, nb_episode=1)
 
-    #             bigger = np.copy(poids)
-    #             bigger[j, k] *= (1+update)
-    #             agent.update_poids(bigger)
-    #             big_score=evaluate_HIV(agent=agent, nb_episode=1)
+                    bigger = np.copy(poids)
+                    bigger[j, k] *= (1+update)
+                    agent.update_poids(bigger)
+                    big_score=evaluate_HIV(agent=agent, nb_episode=1)
 
-    #             if big_score > current_score : 
-    #                 count=0
-    #                 while big_score > current_score and count<10:
-    #                     count+=1
-    #                     poids = bigger
-    #                     current_score = big_score
-    #                     scores.append(current_score)
-    #                     bigger[j, k] *= (1+update)
-    #                     agent.update_poids(bigger)
-    #                     big_score=evaluate_HIV(agent=agent, nb_episode=1)
+                    if big_score > current_score : 
+                        count=0
+                        while big_score > current_score and count<10:
+                            count+=1
+                            poids = bigger
+                            current_score = big_score
+                            with open('scores.txt', 'a') as f : 
+                                f.write(str(current_score)+'\n')
+                            scores.append(current_score)
+                            bigger[j, k] *= (1+update)
+                            agent.update_poids(bigger)
+                            big_score=evaluate_HIV(agent=agent, nb_episode=1)
 
-    #             elif small_score > current_score :
-    #                 count=0
-    #                 while small_score > current_score and count<10:
-    #                     count+=1
-    #                     poids = smaller
-    #                     current_score = small_score
-    #                     scores.append(current_score)
-    #                     smaller[j, k] *= (1-update)
-    #                     agent.update_poids(smaller)
-    #                     small_score=evaluate_HIV(agent=agent, nb_episode=1)
-                
+                    elif small_score > current_score :
+                        count=0
+                        while small_score > current_score and count<10:
+                            count+=1
+                            poids = smaller
+                            current_score = small_score
+                            with open('scores.txt', 'a') as f : 
+                                f.write(str(current_score)+'\n')
+                            scores.append(current_score)
+                            smaller[j, k] *= (1-update)
+                            agent.update_poids(smaller)
+                            small_score=evaluate_HIV(agent=agent, nb_episode=1)
+            np.savetxt('./poids_opti'+str(i)+'.txt', poids, delimiter=",")
 
 
 
