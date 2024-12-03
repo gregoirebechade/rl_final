@@ -63,7 +63,7 @@ if __name__=='__main__':
     V = 63919.0  # free virus (copies per mL)
     E = 24.0  # immune effector 
 
-    if False : 
+    if True : 
         env_begin=np.array([T1, T1star, T2, T2star, V, E])
         poids=np.ones((4, 6))
         for i in range(len(env_begin)): 
