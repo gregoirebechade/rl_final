@@ -26,6 +26,7 @@ class ProjectAgent:
         probas -= np.max(probas)  # Subtract max value to prevent overflow
         probas = np.exp(probas)
         probas /= np.sum(probas)
+        return np.argmax(probas)
     def save(self, path):
         pass
 
