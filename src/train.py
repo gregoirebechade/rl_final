@@ -38,6 +38,7 @@ class ProjectAgent:
 
 
 if __name__=='__main__':
+    print('beginning training')
     scores=[]
     def evaluate_weights(poids):
         poids = np.reshape(poids, (4, 6))
@@ -122,10 +123,3 @@ if __name__=='__main__':
                                 small_score=np.mean([evaluate_HIV(agent=agent, nb_episode=1) for _ in range(10)])
                 np.savetxt('./poids_opti'+str(l)+str(i)+'_bis.txt', poids, delimiter=",")
 
-
-
-
-
-
-
-    
