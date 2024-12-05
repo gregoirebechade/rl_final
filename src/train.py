@@ -140,9 +140,9 @@ import torch.nn.functional as F  # Optional for more concise activation function
 class QNetwork(nn.Module): # approxime Q(s,a); A un état s, on associe Q(s,a) pour chaque action a
     def __init__(self, input_dim, output_dim):
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 36)
-        self.fc2 = nn.Linear(36, 36)
-        self.fc3 = nn.Linear(36, output_dim)
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, output_dim)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -188,7 +188,7 @@ class ProjectAgent:
         self.gamma = 0.99
         self.batch_size = 64
         self.epsilon = 1.0  # Initial exploration rate
-        self.epsilon_decay = 0.995
+        self.epsilon_decay = 0.997
         self.epsilon_min = 0.1
 
     def act(self, state):
@@ -247,7 +247,7 @@ if __name__ == "__main__":
         action_dim = env.action_space.n
 
         agent = ProjectAgent()
-        num_episodes = 500
+        num_episodes = 2000
         target_update_freq = 10
 
         for episode in range(num_episodes):
