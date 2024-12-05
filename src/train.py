@@ -133,6 +133,8 @@ from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
 from evaluate import evaluate_HIV
 import os 
+import torch.nn.functional as F  # Optional for more concise activation functions
+
 
 # Define the Q-Network
 class QNetwork(nn.Module): # approxime Q(s,a); A un état s, on associe Q(s,a) pour chaque action a
@@ -143,8 +145,8 @@ class QNetwork(nn.Module): # approxime Q(s,a); A un état s, on associe Q(s,a) p
         self.fc3 = nn.Linear(36, output_dim)
 
     def forward(self, x):
-        x = nn.ReLU(self.fc1(x))
-        x = nn.ReLU(self.fc2(x))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         return self.fc3(x)
 
 # Replay Buffer for Experience Replay
