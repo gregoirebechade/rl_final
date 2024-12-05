@@ -143,8 +143,8 @@ class QNetwork(nn.Module): # approxime Q(s,a); A un état s, on associe Q(s,a) p
         self.fc3 = nn.Linear(36, output_dim)
 
     def forward(self, x):
-        x = torch.softmax(self.fc1(x))
-        x = torch.softmax(self.fc2(x))
+        x = torch.nn.Relu(self.fc1(x))
+        x = torch.nn.Relu(self.fc2(x))
         return self.fc3(x)
 
 # Replay Buffer for Experience Replay
