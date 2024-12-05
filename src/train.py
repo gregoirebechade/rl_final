@@ -132,18 +132,19 @@ import random
 from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
 from evaluate import evaluate_HIV
+import os 
 
 # Define the Q-Network
 class QNetwork(nn.Module): # approxime Q(s,a); A un état s, on associe Q(s,a) pour chaque action a
     def __init__(self, input_dim, output_dim):
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, output_dim)
+        self.fc1 = nn.Linear(input_dim, 36)
+        self.fc2 = nn.Linear(36, 36)
+        self.fc3 = nn.Linear(36, output_dim)
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
+        x = torch.softmax(self.fc1(x))
+        x = torch.softmax(self.fc2(x))
         return self.fc3(x)
 
 # Replay Buffer for Experience Replay
@@ -173,12 +174,13 @@ class ReplayBuffer: # sert à stocker les expériences passées pour les réutil
         return len(self.buffer)
 
 # DQN Agent
-class DQNAgent:
-    def __init__(self, state_dim, action_dim):
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-        self.q_network = QNetwork(state_dim, action_dim)
-        self.target_network = QNetwork(state_dim, action_dim)
+class ProjectAgent:
+    def __init__(self):
+        self.file_path = os.path.join(os.path.dirname(__file__), "dqn_agent.pth")
+        self.state_dim = 6
+        self.action_dim = 4
+        self.q_network = QNetwork(self.state_dim, self.action_dim)
+        self.target_network = QNetwork(self.state_dim, self.action_dim)
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=1e-3)
         self.replay_buffer = ReplayBuffer(10000)
         self.gamma = 0.99
@@ -195,7 +197,7 @@ class DQNAgent:
         state = torch.FloatTensor(state).unsqueeze(0)
         with torch.no_grad():
             q_values = self.q_network(state)
-        return torch.argmax(q_values).item() # renvoie le max de Q(s,a) pour chaque a
+        return torch.argmax(q_values).item() # renvoie le max de [Q(s,a) pour chaque a]
 
     def train(self):
         if len(self.replay_buffer) < self.batch_size:
@@ -226,52 +228,56 @@ class DQNAgent:
     def update_target_network(self):
         self.target_network.load_state_dict(self.q_network.state_dict())
 
-    def save(self, path):
+    def save(self):
+        path = "dqn_agent.pth"
         torch.save(self.q_network.state_dict(), path)
 
-    def load(self, path):
-        self.q_network.load_state_dict(torch.load(path))
+    def load(self):
+        path = "dqn_agent.pth"
+        self.q_network.load_state_dict(torch.load(self.file_path))
 
 # Training Loop
 if __name__ == "__main__":
-    env = TimeLimit(env=HIVPatient(domain_randomization=False), max_episode_steps=200)
-    state_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.n
+    training = True
+    if training : 
+        env = TimeLimit(env=HIVPatient(domain_randomization=False), max_episode_steps=200)
+        state_dim = env.observation_space.shape[0]
+        action_dim = env.action_space.n
 
-    agent = DQNAgent(state_dim, action_dim)
-    num_episodes = 500
-    target_update_freq = 10
+        agent = ProjectAgent()
+        num_episodes = 500
+        target_update_freq = 10
 
-    for episode in range(num_episodes):
-        state = env.reset()
-        total_reward = 0
+        for episode in range(num_episodes):
+            state = env.reset()
+            total_reward = 0
 
-        for t in range(200):
-            
-             
-            action = agent.act(state)
-            
-            next_state, reward, done, _, _ = env.step(action)
-            agent.replay_buffer.add(state, action, reward, next_state, done)
+            for t in range(200):
+                
+                
+                action = agent.act(state)
+                
+                next_state, reward, done, _, _ = env.step(action)
+                agent.replay_buffer.add(state, action, reward, next_state, done)
 
-            state = next_state
-            total_reward += reward
+                state = next_state
+                total_reward += reward
 
-            agent.train()
-            if done:
-                break
+                agent.train()
+                if done:
+                    break
 
-        # Update the target network
-        if episode % target_update_freq == 0:
-            agent.update_target_network()
+            # Update the target network
+            if episode % target_update_freq == 0:
+                agent.update_target_network()
 
-        # Decay epsilon
-        agent.epsilon = max(agent.epsilon_min, agent.epsilon * agent.epsilon_decay)
+            # Decay epsilon
+            agent.epsilon = max(agent.epsilon_min, agent.epsilon * agent.epsilon_decay)
 
-        print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+            print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
 
-    # Save the trained model
-    agent.save("dqn_agent.pth")
+        # Save the trained model
+        agent.save()
 
 
 
