@@ -158,7 +158,7 @@ class QNetwork(nn.Module): # approxime Q(s,a); A un état s, on associe Q(s,a) p
         x = F.relu(self.fc5(x))
         x = F.relu(self.fc6(x))
         x = F.relu(self.fc7(x))
-        return self.fc3(x)
+        return x 
 
 # Replay Buffer for Experience Replay
 class ReplayBuffer: # sert à stocker les expériences passées pour les réutiliser
