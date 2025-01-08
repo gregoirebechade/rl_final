@@ -140,8 +140,8 @@ import torch.nn.functional as F  # Optional for more concise activation function
 class QNetwork(nn.Module): # approxime Q(s,a); A un état s, on associe Q(s,a) pour chaque action a
     def __init__(self, input_dim, output_dim):
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.fc2 = nn.Linear(128, 256)
+        self.fc1 = nn.Linear(input_dim, 256)
+        self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 512)
         self.fc4 = nn.Linear(512, 512)
         self.fc5 = nn.Linear(512, 256)
@@ -189,6 +189,8 @@ class ReplayBuffer: # sert à stocker les expériences passées pour les réutil
 # DQN Agent
 class ProjectAgent:
     def __init__(self):
+        # self.criterion =  nn.SmoothL1Loss() # essayer avec mse
+        self.criterion = nn.MSELoss()
         self.file_path = os.path.join(os.path.dirname(__file__), "dqn_agent.pth")
         self.state_dim = 6
         self.action_dim = 4
@@ -199,20 +201,20 @@ class ProjectAgent:
         self.gamma = 0.99
         self.batch_size = 64
         self.epsilon = 1.0  # Initial exploration rate
-        self.epsilon_decay = 0.997
+        self.epsilon_decay = 0.995
         self.epsilon_min = 0.1 # passer à 0.001 pour voir 
 
     def act(self, state):
         if state[1]=={}: 
             state=state[0]  
-        if np.random.rand() < self.epsilon:
-            return np.random.choice(self.action_dim)
+        # if np.random.rand() < self.epsilon:
+        #     return np.random.choice(self.action_dim)
         state = torch.FloatTensor(state).unsqueeze(0)
         with torch.no_grad():
             q_values = self.q_network(state)
         return torch.argmax(q_values).item() # renvoie le max de [Q(s,a) pour chaque a]
 
-    def train(self):
+    def train(self): # GREGOIRE
         if len(self.replay_buffer) < self.batch_size:
             return
 
@@ -238,11 +240,42 @@ class ProjectAgent:
         loss.backward()
         self.optimizer.step()
 
+
+    # def train(self): # ROMANE
+    #     if len(self.replay_buffer) < self.batch_size:
+    #         return 
+    #     # Échantillonner un batch de la mémoire
+    #     states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
+
+    #     # Conversion en tenseurs PyTorch
+    #     states = torch.FloatTensor(states)
+    #     actions = torch.LongTensor(actions)
+    #     rewards = torch.FloatTensor(rewards)
+    #     next_states = torch.FloatTensor(next_states)
+    #     dones = torch.FloatTensor(dones)
+
+    #     # Calcul des Q-valeurs maximales pour les états suivants
+    #     next_q_values = self.target_network(next_states).max(1)[0].detach()
+
+    #     # Calcul de la mise à jour des cibles
+    #     targets = torch.addcmul(rewards, 1 - dones, next_q_values, value=self.gamma)
+
+    #     # Récupération des Q-valeurs actuelles pour les actions prises
+    #     current_q_values = self.q_network(states).gather(1, actions.unsqueeze(1))
+
+    #     # Calcul de la perte
+    #     loss = self.criterion(current_q_values, targets.unsqueeze(1))
+        
+    #     # Rétropropagation
+    #     self.optimizer.zero_grad()
+    #     loss.backward()
+    #     self.optimizer.step()
+
+
     def update_target_network(self):
         self.target_network.load_state_dict(self.q_network.state_dict())
 
-    def save(self):
-        path = "dqn_agent.pth"
+    def save(self, path = "dqn_agent.pth"):
         torch.save(self.q_network.state_dict(), path)
 
     def load(self):
@@ -251,26 +284,28 @@ class ProjectAgent:
 
 # Training Loop
 if __name__ == "__main__":
-    training = False
+    training = True
     if training : 
+        print('beginning training, mse greg, rabdom pas idiot')
         env = TimeLimit(env=HIVPatient(domain_randomization=False), max_episode_steps=200)
         state_dim = env.observation_space.shape[0]
         action_dim = env.action_space.n
 
         agent = ProjectAgent()
-        num_episodes = 2000
+        num_episodes = 1000
         target_update_freq = 10
-
+        perf_max=0
         for episode in range(num_episodes):
             state = env.reset()
             total_reward = 0
-
-            for t in range(200):
+            done, trunc = False, False
+            while not done and not trunc :                 
+                if np.random.rand() < agent.epsilon:
+                    action =  np.random.choice(agent.action_dim)
+                else : 
+                    action = agent.act(state)
                 
-                
-                action = agent.act(state)
-                
-                next_state, reward, done, _, _ = env.step(action)
+                next_state, reward, done, trunc, _ = env.step(action)
                 agent.replay_buffer.add(state, action, reward, next_state, done)
 
                 state = next_state
@@ -286,12 +321,18 @@ if __name__ == "__main__":
 
             # Decay epsilon
             agent.epsilon = max(agent.epsilon_min, agent.epsilon * agent.epsilon_decay)
+            perf = evaluate_HIV(agent=agent, nb_episode=1)
+            if perf > perf_max : 
+                agent.save(path= 'max_so_far.pth')
 
-            print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+            # print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+            print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward:.2e}, perf: {perf:.2e} Epsilon: {agent.epsilon:.3e}") # nvlle méthode 
 
         # Save the trained model
         agent.save()
 
+
+# faire varier : train de romane, mse loss, epsilon decay
 
 
                 
