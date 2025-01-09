@@ -191,7 +191,7 @@ class ProjectAgent:
     def __init__(self):
         # self.criterion =  nn.SmoothL1Loss() # essayer avec mse
         self.criterion = nn.MSELoss()
-        self.file_path = os.path.join(os.path.dirname(__file__), "dqn_agent.pth")
+        self.file_path = os.path.join(os.path.dirname(__file__), "max_so_far.pth")
         self.state_dim = 6
         self.action_dim = 4
         self.q_network = QNetwork(self.state_dim, self.action_dim)
