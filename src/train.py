@@ -201,7 +201,7 @@ class ProjectAgent:
         self.gamma = 0.99
         self.batch_size = 64
         self.epsilon = 1.0  # Initial exploration rate
-        self.epsilon_decay = 0.995
+        self.epsilon_decay = 0.9977
         self.epsilon_min = 0.1 # passer à 0.001 pour voir 
 
     def act(self, state):
@@ -214,62 +214,69 @@ class ProjectAgent:
             q_values = self.q_network(state)
         return torch.argmax(q_values).item() # renvoie le max de [Q(s,a) pour chaque a]
 
-    def train(self): # GREGOIRE
-        if len(self.replay_buffer) < self.batch_size:
-            return
-
-        # Sample a batch from the replay buffer
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
-
-        states = torch.FloatTensor(states)
-        actions = torch.LongTensor(actions)
-        rewards = torch.FloatTensor(rewards)
-        next_states = torch.FloatTensor(next_states)
-        dones = torch.FloatTensor(dones)
-
-        # Compute Q-values and targets
-        q_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
-        next_q_values = self.target_network(next_states).max(1)[0]
-        targets = rewards + self.gamma * next_q_values * (1 - dones)
-
-        # Compute loss
-        loss = nn.MSELoss()(q_values, targets)
-
-        # Backpropagation
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-
-    # def train(self): # ROMANE
+    # def train(self): # GREGOIRE
     #     if len(self.replay_buffer) < self.batch_size:
-    #         return 
-    #     # Échantillonner un batch de la mémoire
+    #         return
+
+    #     # Sample a batch from the replay buffer
     #     states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
 
-    #     # Conversion en tenseurs PyTorch
     #     states = torch.FloatTensor(states)
     #     actions = torch.LongTensor(actions)
     #     rewards = torch.FloatTensor(rewards)
     #     next_states = torch.FloatTensor(next_states)
     #     dones = torch.FloatTensor(dones)
 
-    #     # Calcul des Q-valeurs maximales pour les états suivants
-    #     next_q_values = self.target_network(next_states).max(1)[0].detach()
+    #     # Compute Q-values and targets
+    #     q_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+    #     next_q_values = self.target_network(next_states).max(1)[0]
+    #     targets = rewards + self.gamma * next_q_values * (1 - dones)
 
-    #     # Calcul de la mise à jour des cibles
-    #     targets = torch.addcmul(rewards, 1 - dones, next_q_values, value=self.gamma)
+    #     # Compute loss
+    #     loss = nn.MSELoss()(q_values, targets)
 
-    #     # Récupération des Q-valeurs actuelles pour les actions prises
-    #     current_q_values = self.q_network(states).gather(1, actions.unsqueeze(1))
-
-    #     # Calcul de la perte
-    #     loss = self.criterion(current_q_values, targets.unsqueeze(1))
-        
-    #     # Rétropropagation
+    #     # Backpropagation
     #     self.optimizer.zero_grad()
     #     loss.backward()
     #     self.optimizer.step()
+
+
+    def train(self): # ROMANE
+        if len(self.replay_buffer) < self.batch_size:
+            return 
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
+        states = torch.FloatTensor(states)
+        actions = torch.LongTensor(actions)
+        rewards = torch.FloatTensor(rewards)
+        next_states = torch.FloatTensor(next_states)
+        dones = torch.FloatTensor(dones)
+        next_q_values = self.target_network(next_states).max(1)[0].detach()
+        targets = torch.addcmul(rewards, 1 - dones, next_q_values, value=self.gamma)
+        current_q_values = self.q_network(states).gather(1, actions.unsqueeze(1))
+        loss = self.criterion(current_q_values, targets.unsqueeze(1))
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        # dessous = code romane
+
+        # X, A, R, Y, D = self.replay_buffer.sample(self.batch_size)
+
+
+        # X = torch.FloatTensor(X)
+        # A = torch.LongTensor(A)
+        # R = torch.FloatTensor(R)
+        # Y = torch.FloatTensor(Y)
+        # D = torch.FloatTensor(D)
+
+
+        # QYmax = self.target_network(Y).max(1)[0].detach()
+        # update = torch.addcmul(R, 1 - D, QYmax, value=self.gamma)
+        # QXA = self.q_network(X).gather(1, A.to(torch.long).unsqueeze(1))
+        # loss = self.criterion(QXA, update.unsqueeze(1))
+        # self.optimizer.zero_grad()
+        # loss.backward()
+        # self.optimizer.step()
 
 
     def update_target_network(self):
@@ -286,13 +293,13 @@ class ProjectAgent:
 if __name__ == "__main__":
     training = True
     if training : 
-        print('beginning training, mse greg, rabdom pas idiot')
+        print('train greg, mse ')
         env = TimeLimit(env=HIVPatient(domain_randomization=False), max_episode_steps=200)
         state_dim = env.observation_space.shape[0]
         action_dim = env.action_space.n
 
         agent = ProjectAgent()
-        num_episodes = 1000
+        num_episodes = 2000
         target_update_freq = 10
         perf_max=0
         for episode in range(num_episodes):
@@ -321,17 +328,22 @@ if __name__ == "__main__":
 
             # Decay epsilon
             agent.epsilon = max(agent.epsilon_min, agent.epsilon * agent.epsilon_decay)
-            perf = evaluate_HIV(agent=agent, nb_episode=1)
+            perf = evaluate_HIV(agent=agent, nb_episode=5)
             if perf > perf_max : 
-                agent.save(path= 'max_so_far.pth')
+                print('new perf max', f"{perf:.2e}")
+                perf_max = perf
+                agent.save(path= 'max_so_far'+str(episode)+'.pth')
 
             # print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
             print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward:.2e}, perf: {perf:.2e} Epsilon: {agent.epsilon:.3e}") # nvlle méthode 
 
         # Save the trained model
         agent.save()
+        print('finally, the best loss reached is', str(perf_max))
+        
 
 
+# essayer avec L1 loss
 # faire varier : train de romane, mse loss, epsilon decay
 
 
